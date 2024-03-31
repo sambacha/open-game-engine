@@ -33,7 +33,7 @@ reindex ::
   OpenGame o c a b x s y r
 reindex v u g =
   OpenGame
-    { play = \a -> play g (v a),
+    { play = play g . v,
       evaluate = \a c -> u a (evaluate g (v a) c)
     }
 

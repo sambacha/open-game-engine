@@ -3,7 +3,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module OpenGames.Preprocessor.CompileBlock
   ( LineWithContext (..),
@@ -72,7 +71,7 @@ compileLine (LineWithContext l cov con) = Sequential (Sequential l1 l2) l3
     l2 = Simultaneous (Function Identity Identity) (Atom (matrix l))
     l3 =
       Function
-        (Multiplex cov (Variables $ (covariantOutputs l)))
+        (Multiplex cov (Variables (covariantOutputs l)))
         (CopyLambda con (Expressions (contravariantInputs l)))
 
 compileBlock :: forall p e. Block p e -> FreeOpenGame p e
@@ -126,8 +125,8 @@ asPat = pure . VarP . mkName
 
 compileQLine :: QLine -> Q SLine
 compileQLine qline = do
-  covIn <- traverse id $ covariantInputs qline
-  conIn <- traverse id $ contravariantInputs qline
+  covIn <- sequenceA $ covariantInputs qline
+  conIn <- sequenceA $ contravariantInputs qline
   exp <- matrix qline
   let covOut = fmap (VarP . mkName) (covariantOutputs qline)
   let conOut = fmap (VarP . mkName) (contravariantOutputs qline)
@@ -140,7 +139,7 @@ instance GameCompiler (Block Pat Exp) where
   generateGame name args block =
     do
       game <- interpretOpenGame (compileBlock block)
-      pure $ [FunD (mkName name) [Clause (fmap (VarP . mkName) args) (NormalB game) []]]
+      pure [FunD (mkName name) [Clause (fmap (VarP . mkName) args) (NormalB game) []]]
 
 extract :: Block (Q p) (Q e) -> Q (Block p e)
 extract (Block covIn conOut lines covOut conIn) =
@@ -171,7 +170,7 @@ instance GameCompiler (Block String (Q Exp)) where
     b <- sequence block
     generateGame name args (first (VarP . mkName) b)
 
-instance GameCompiler ([QLine]) where
+instance GameCompiler [QLine] where
   generateGame name args lines = do
     lines <- traverse compileQLine lines
     generateGame name args $ Block [] [] lines [] []
@@ -185,7 +184,7 @@ parseLambdaAsOpenGame input =
 parseLambdaAsExp :: String -> Q Exp
 parseLambdaAsExp input = case parseLambda input of
   Left err -> error (show err)
-  Right v -> (interpretOpenGame $ compileBlock $ convertGame v)
+  Right v -> interpretOpenGame $ compileBlock $ convertGame v
 
 game :: QuasiQuoter
 game =

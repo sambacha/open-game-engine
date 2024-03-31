@@ -157,7 +157,7 @@ operators =
       Infix (mkInfix "<=") AssocNone,
       Infix (mkInfix ">=") AssocNone
     ],
-    [Prefix (reservedOp "-" *> pure (PFix "-"))],
+    [Prefix (reservedOp "-" Data.Functor.$> PFix "-")],
     [Infix (mkInfix "++") AssocRight],
     [ Infix (mkInfix "+") AssocLeft,
       Infix (mkInfix "-") AssocLeft,
@@ -176,11 +176,11 @@ natural = Tok.natural lexer
 -- ^ Parse a variable as a Lambda term
 
 variable :: Parser Lambda
-variable = identifier >>= (return . Var)
+variable = identifier Data.Functor.<&> Var
 -- ^ Parse an Integer as a Lambda term
 
 number :: Parser Lambda
-number = natural >>= return . (\x -> (Lit (LInt (fromIntegral x))))
+number = natural Data.Functor.<&> (\x -> (Lit (LInt (fromIntegral x))))
 -- ^ Parse a string literal as a Lambda term
 
 strLit :: Parser Lambda
@@ -226,8 +226,7 @@ parseLet = do
   reservedOp "="
   value <- expr
   reserved "in"
-  body <- expr
-  pure (LLet varName value body)
+  LLet varName value <$> expr
 
 parseTuple :: Parser Lambda
 parseTuple = do
@@ -252,8 +251,7 @@ ifExp = do
   reserved "then"
   thn <- term
   reserved "else"
-  els <- term
-  return $ IfThenElse prd thn els
+  IfThenElse prd thn <$> term
 -- ^ Parse a bracketed expression
 -- ^ Those are a bit complicated because they can be either a list
 -- ^ Or a range with begining and end
@@ -287,7 +285,7 @@ comprehension :: Parser Lambda
 comprehension = do
   e <- expr
   reservedOp "|"
-  LComp <$> ((++ [LNoBindS e]) <$> (sepBy1 parseStmt comma))
+  LComp . (++ [LNoBindS e]) <$> sepBy1 parseStmt comma
   where
     parseStmt :: Parser LStmt
     parseStmt =
@@ -317,20 +315,20 @@ expr = infixParser appl
 
 parseLine :: Parser p -> Parser e -> Parser (Line (Maybe String) p e)
 parseLine parseP parseE = do
-  covo <- (commaSep parseP <* reservedOp "|")
-  coni <- (commaSep parseE <* reservedOp "<-")
-  matrix <- (parseE <* reservedOp "-<")
-  cono <- (commaSep parseP <* reservedOp "|")
-  covi <- (commaSep parseE <* reservedOp ";")
+  covo <- commaSep parseP <* reservedOp "|"
+  coni <- commaSep parseE <* reservedOp "<-"
+  matrix <- parseE <* reservedOp "-<"
+  cono <- commaSep parseP <* reservedOp "|"
+  covi <- commaSep parseE <* reservedOp ";"
   pure (Line Nothing covi cono matrix covo coni)
 
 parseBlock :: Parser p -> Parser e -> Parser (Block p e)
 parseBlock parseP parseE = do
-  covi <- (commaSep parseP <* reservedOp "||")
-  cono <- (commaSep parseE <* reservedOp "=>>")
-  lines <- (many (parseLine parseP parseE) <* reservedOp "<<=")
-  coni <- (commaSep parseP <* reservedOp "||")
-  covo <- (commaSep parseE)
+  covi <- commaSep parseP <* reservedOp "||"
+  cono <- commaSep parseE <* reservedOp "=>>"
+  lines <- many (parseLine parseP parseE) <* reservedOp "<<="
+  coni <- commaSep parseP <* reservedOp "||"
+  covo <- commaSep parseE
   pure (Block covi cono lines covo coni)
 
 parseTwoLines :: String -> String -> Parser p -> Parser e -> Parser ([p], [e])

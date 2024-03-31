@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 
 module OpenGames.Preprocessor.BlockSyntax where
 
@@ -70,8 +69,7 @@ instance Foldable (Line lbl p) where
 
 instance Traversable (Line lbl p) where
   traverse f (Line lbl covIn conOut m covOut conIn) =
-    pure (Line lbl)
-      <*> traverse f covIn
+    (Line lbl <$> traverse f covIn)
       <*> pure conOut
       <*> f m
       <*> pure covOut
@@ -104,12 +102,11 @@ instance Applicative (Block p) where
 
 instance Foldable (Block p) where
   foldr f init (Block _ _ arg _ _) =
-    foldr (\l b -> foldr f b l) init arg
+    foldr (flip (foldr f)) init arg
 
 instance Traversable (Block p) where
   traverse f (Block covi cono l covo coni) =
-    pure Block
-      <*> pure covi
+    (Block <$> pure covi)
       <*> traverse f cono
       <*> traverse (traverse f) l
       <*> traverse f covo

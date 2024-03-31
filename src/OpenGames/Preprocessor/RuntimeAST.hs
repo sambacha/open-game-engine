@@ -34,7 +34,7 @@ data FunctionExpression p e
   deriving (Eq, Functor)
 
 flattenVariables :: [Variables p] -> Variables p
-flattenVariables = Variables . concat . map vars
+flattenVariables = Variables . concatMap vars
 
 instance Show (FunctionExpression String String) where
   show Identity = "\\x -> x"

@@ -33,7 +33,7 @@ data DiagnosticInfoBayesian x y = DiagnosticInfoBayesian
     optimalMove :: y,
     strategy :: Stochastic y,
     optimalPayoff :: Double,
-    context :: (y -> Double),
+    context :: y -> Double,
     payoff :: Double,
     state :: x,
     unobservedState :: String
@@ -47,22 +47,22 @@ showDiagnosticInfo info =
     ++ player info
     ++ "\n"
     ++ "Optimal Move: "
-    ++ (show $ optimalMove info)
+    ++ show (optimalMove info)
     ++ "\n"
     ++ "Current Strategy: "
-    ++ (show $ strategy info)
+    ++ show (strategy info)
     ++ "\n"
     ++ "Optimal Payoff: "
-    ++ (show $ optimalPayoff info)
+    ++ show (optimalPayoff info)
     ++ "\n"
     ++ "Current Payoff: "
-    ++ (show $ payoff info)
+    ++ show (payoff info)
     ++ "\n"
     ++ "Observable State: "
-    ++ (show $ state info)
+    ++ show (state info)
     ++ "\n"
     ++ "Unobservable State: "
-    ++ (show $ unobservedState info)
+    ++ show (unobservedState info)
 
 -- output string information for a subgame expressions containing information from several players - bayesian
 showDiagnosticInfoL :: (Show y, Ord y, Show x) => [DiagnosticInfoBayesian x y] -> String
@@ -73,9 +73,9 @@ showDiagnosticInfoL (x : xs) = showDiagnosticInfo x ++ "\n --other game-- " ++ s
 checkEqL :: (Show y, Ord y, Show x) => [DiagnosticInfoBayesian x y] -> String
 checkEqL ls =
   let xs = fmap equilibrium ls
-      ys = filter (\x -> equilibrium x == False) ls
+      ys = filter (\x -> not (equilibrium x)) ls
       isEq = and xs
-   in if isEq == True
+   in if isEq
         then "\n Strategies are in equilibrium"
         else "\n Strategies are NOT in equilibrium. Consider the following profitable deviations: \n" ++ showDiagnosticInfoL ys
 
@@ -86,32 +86,32 @@ checkEqL ls =
 data ShowDiagnosticOutput = ShowDiagnosticOutput
 
 instance (Show y, Ord y, Show x) => Apply ShowDiagnosticOutput [DiagnosticInfoBayesian x y] String where
-  apply _ x = showDiagnosticInfoL x
+  apply _ = showDiagnosticInfoL
 
 data PrintIsEq = PrintIsEq
 
 instance (Show y, Ord y, Show x) => Apply PrintIsEq [DiagnosticInfoBayesian x y] String where
-  apply _ x = checkEqL x
+  apply _ = checkEqL
 
 instance (Show y, Ord y, Show x) => Apply PrintIsEq (Maybe [DiagnosticInfoBayesian x y]) String where
-  apply _ x = checkEqL (maybe [] id x)
+  apply _ x = checkEqL (Data.Maybe.fromMaybe [] x)
 
 data PrintOutput = PrintOutput
 
 instance (Show y, Ord y, Show x) => Apply PrintOutput [DiagnosticInfoBayesian x y] String where
-  apply _ x = showDiagnosticInfoL x
+  apply _ = showDiagnosticInfoL
 
 -- is this ok?
 instance (Show y, Ord y, Show x) => Apply PrintOutput (DiagnosticInfoBayesian x y) String where
   apply _ x = showDiagnosticInfoL [x]
 
 instance (Show y, Ord y, Show x) => Apply PrintOutput (Maybe [DiagnosticInfoBayesian x y]) String where
-  apply _ x = showDiagnosticInfoL (maybe [] id x)
+  apply _ x = showDiagnosticInfoL (Data.Maybe.fromMaybe [] x)
 
 data Concat = Concat
 
 instance Apply Concat String (String -> String) where
-  apply _ x = \y -> x ++ "\n NEWGAME: \n" ++ y
+  apply _ x y = x ++ "\n NEWGAME: \n" ++ y
 
 ---------------------
 -- main functionality
@@ -125,7 +125,7 @@ generateOutputStr ::
   List xs ->
   String
 generateOutputStr hlist =
-  "----Analytics begin----" ++ (foldrL Concat "" $ mapL @_ @_ @(ConstMap String xs) PrintOutput hlist) ++ "----Analytics end----\n"
+  "----Analytics begin----" ++ foldrL Concat "" (mapL @_ @_ @(ConstMap String xs) PrintOutput hlist) ++ "----Analytics end----\n"
 
 generateOutput ::
   forall xs.
@@ -147,4 +147,4 @@ generateIsEq ::
   IO ()
 generateIsEq hlist =
   putStrLn $
-    "----Analytics begin----" ++ (foldrL Concat "" $ mapL @_ @_ @(ConstMap String xs) PrintIsEq hlist) ++ "----Analytics end----\n"
+    "----Analytics begin----" ++ foldrL Concat "" (mapL @_ @_ @(ConstMap String xs) PrintIsEq hlist) ++ "----Analytics end----\n"

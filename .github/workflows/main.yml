@@ -1,67 +1,85 @@
-# This is a basic workflow to help you get started with Actions
-
-name: CI
-
-# Controls when the action will run.
+name: build
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
   push:
-    branches: [ master, hevm-transactions ]
   pull_request:
-    branches: [ master ]
+    branches: [main, master]
+  workflow_dispatch: {}
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+# INFO: The following configuration block ensures that only one build runs per branch,
+# which may be desirable for projects with a costly build process.
+# Remove this block from the CI workflow to let each CI job run to completion.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+
 jobs:
-  runact:
-    name: run act tests
-    runs-on: ubuntu-latest
+  build:
+    name: GHC ${{ matrix.ghc-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        ghc-version: ['8.8.4','8.10', '9.4', '9.0']
+
+        include:
+          - os: macos-latest
+            ghc-version: '8.8.4'
+
     steps:
-      - uses: actions/checkout@v2
-      - uses: cachix/install-nix-action@v20
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v26
         with:
           nix_path: nixpkgs=channel:nixos-unstable
-      - uses: haskell/actions/setup@v1
+
+      - name: Set up GHC ${{ matrix.ghc-version }}
+        uses: haskell-actions/setup@v2
+        id: setup
         with:
-          ghc-version: '9.2.6' # Exact version of ghc to use
-          # cabal-version: 'latest'. Omitted, but defaults to 'latest'
+          ghc-version: ${{ matrix.ghc-version }}
+          # Defaults, added for clarity:
+          cabal-version: 'latest'
+          cabal-update: true
           enable-stack: true
           stack-version: 'latest'
-      - run: |
-          cd act
-          stack test
-  runevm:
-    name: run hevm tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: cachix/install-nix-action@v20
+
+      - name: Configure the build
+        run: |
+          cabal configure --enable-tests --enable-benchmarks --disable-documentation
+          cabal build all --dry-run
+        # The last step generates dist-newstyle/cache/plan.json for the cache key.
+
+      - name: Restore cached dependencies
+        uses: actions/cache/restore@v3
+        id: cache
+        env:
+          key: ${{ runner.os }}-ghc-${{ steps.setup.outputs.ghc-version }}-cabal-${{ steps.setup.outputs.cabal-version }}
         with:
-          nix_path: nixpkgs=channel:nixos-unstable
-      - uses: haskell/actions/setup@v1
+          path: ${{ steps.setup.outputs.cabal-store }}
+          key: ${{ env.key }}-plan-${{ hashFiles('**/plan.json') }}
+          restore-keys: ${{ env.key }}-
+
+      - name: Install dependencies
+        # If we had an exact cache hit, the dependencies will be up to date.
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: cabal build all --only-dependencies
+
+      # Cache dependencies already here, so that we do not have to rebuild them should the subsequent steps fail.
+      - name: Save cached dependencies
+        uses: actions/cache/save@v3
+        # If we had an exact cache hit, trying to save the cache would error because of key clash.
+        if: steps.cache.outputs.cache-hit != 'true'
         with:
-          ghc-version: '9.4.5' # Exact version of ghc to use
-          # cabal-version: 'latest'. Omitted, but defaults to 'latest'
-          enable-stack: true
-          stack-version: 'latest'
+          path: ${{ steps.setup.outputs.cabal-store }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+
+      - run: stack build
+
       - run: |
           cd evm
           stack test
-  runhaskell:
-    name: run tests
-    runs-on: ubuntu-latest # or macOS-latest, or windows-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: cachix/install-nix-action@v20
-        with:
-          nix_path: nixpkgs=channel:nixos-unstable
-      - uses: haskell-actions/run-ormolu@v11
-      - uses: haskell/actions/setup@v1
-        with:
-          ghc-version: '8.10.4' # Exact version of ghc to use
-          # cabal-version: 'latest'. Omitted, but defaults to 'latest'
-          enable-stack: true
-          stack-version: 'latest'
-      - run: stack build
+
+      - run: |
+          cd act
+          stack test

@@ -45,9 +45,7 @@ jobs:
           stack-version: 'latest'
 
       - name: Configure the build
-        run: |
-          cabal configure --enable-tests --enable-benchmarks --disable-documentation
-          cabal build all --dry-run
+        run: stack build
         # The last step generates dist-newstyle/cache/plan.json for the cache key.
 
       - name: Restore cached dependencies
@@ -73,8 +71,6 @@ jobs:
         with:
           path: ${{ steps.setup.outputs.cabal-store }}
           key: ${{ steps.cache.outputs.cache-primary-key }}
-
-      - run: stack build
 
       - run: |
           cd evm

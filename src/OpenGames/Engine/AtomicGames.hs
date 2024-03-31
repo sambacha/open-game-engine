@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE QuasiQuotes #-}
 
-
 module OpenGames.Engine.AtomicGames
   ( decision,
     decisionNoObs,

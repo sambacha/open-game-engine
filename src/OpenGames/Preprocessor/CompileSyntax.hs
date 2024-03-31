@@ -1,7 +1,3 @@
-
-
-
-
 module OpenGames.Preprocessor.CompileSyntax where
 
 import Data.Bifunctor

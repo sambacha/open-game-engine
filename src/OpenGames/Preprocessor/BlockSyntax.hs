@@ -3,7 +3,6 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-
 module OpenGames.Preprocessor.BlockSyntax where
 
 import Control.Comonad

@@ -3,7 +3,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE QuasiQuotes #-}
 
-
 module OpenGames.Engine.Stateful where
 
 import OpenGames

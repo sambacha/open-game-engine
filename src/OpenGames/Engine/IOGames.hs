@@ -7,7 +7,6 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
-
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -118,13 +117,14 @@ evaluate (strat :- Nil) (MonadContextM h k) = output :- Nil
         -- Sample the average utility from all actions
         samplePayoffs = mapM sampleY ys
     -- \^ ys is the list of possible actions
-    play (strat :- Nil) = let v x = do
-                                g <- newStdGen
-                                gS <- newIOGenM g
-                                action <- genFromTable (runKleisli strat x) gS
-                                return ((), action)
-                              u () r = modify (adjustOrAdd (+ r) r name)
-                           in MonadOpticM v u
+    play (strat :- Nil) =
+      let v x = do
+            g <- newStdGen
+            gS <- newIOGenM g
+            action <- genFromTable (runKleisli strat x) gS
+            return ((), action)
+          u () r = modify (adjustOrAdd (+ r) r name)
+       in MonadOpticM v u
 
 -- Support functionality for constructing open games
 fromLens :: (x -> y) -> (x -> r -> s) -> IOOpenGame '[] '[] x s y r

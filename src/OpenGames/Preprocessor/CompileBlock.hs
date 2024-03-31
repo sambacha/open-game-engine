@@ -4,7 +4,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-
 module OpenGames.Preprocessor.CompileBlock
   ( LineWithContext (..),
     SLine,

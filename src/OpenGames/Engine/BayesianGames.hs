@@ -204,7 +204,7 @@ addPayoffs name =
   OpenGame
     { play = \_ ->
         let v x = return (x, ())
-            u value () = modify (adjustOrAdd (\x -> x + value) value name)
+            u value () = modify (adjustOrAdd (+ value) value name)
          in StochasticStatefulOptic v u,
       evaluate = \_ _ -> Nil
     }

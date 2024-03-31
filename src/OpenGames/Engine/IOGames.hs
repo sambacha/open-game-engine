@@ -7,7 +7,7 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeApplications #-}
+
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -72,60 +72,59 @@ dependentDecisionIO ::
 -- ^ (average utility of current strategy, [average utility of all possible alternative actions])
 dependentDecisionIO name sampleSize ys = OpenGame {play, evaluate}
   where
-    -- \^ ys is the list of possible actions
-    play = \(strat :- Nil) ->
-      let v x = do
-            g <- newStdGen
-            gS <- newIOGenM g
-            action <- genFromTable (runKleisli strat x) gS
-            return ((), action)
-          u () r = modify (adjustOrAdd (+ r) r name)
-       in MonadOpticM v u
 
-    evaluate (strat :- Nil) (MonadContextM h k) = output :- Nil
+evaluate (strat :- Nil) (MonadContextM h k) = output :- Nil
+  where
+    output = do
+      zippedLs <- samplePayoffs
+      let samplePayoffs' = map snd zippedLs
+      let (optimalPlay, optimalPayoff0) = maximumBy (comparing snd) zippedLs
+      (currentMove, averageUtilStrategy') <- averageUtilStrategy
+      return
+        DiagnosticsMC
+          { playerNameMC = name,
+            averageUtilStrategyMC = averageUtilStrategy',
+            samplePayoffsMC = samplePayoffs',
+            optimalMoveMC = optimalPlay,
+            optimalPayoffMC = optimalPayoff0
+          }
       where
-        output = do
-          zippedLs <- samplePayoffs
-          let samplePayoffs' = map snd zippedLs
-          let (optimalPlay, optimalPayoff0) = maximumBy (comparing snd) zippedLs
-          (currentMove, averageUtilStrategy') <- averageUtilStrategy
-          return
-            DiagnosticsMC
-              { playerNameMC = name,
-                averageUtilStrategyMC = averageUtilStrategy',
-                samplePayoffsMC = samplePayoffs',
-                optimalMoveMC = optimalPlay,
-                optimalPayoffMC = optimalPayoff0
-              }
-          where
-            action = do
-              (_, x) <- h
-              g <- newStdGen
-              gS <- newIOGenM g
-              genFromTable (runKleisli strat x) gS
-            u y = do
-              (z, _) <- h
-              evalStateT
-                ( do
-                    r <- k z y
-                    -- \^ utility <- payoff function given other players strategies and my own action y
-                    gets ((+ r) . HM.findWithDefault 0.0 name)
-                )
-                HM.empty
-            -- Sample the average utility from current strategy
-            averageUtilStrategy = do
-              (_, x) <- h
-              actionLS' <- replicateM sampleSize action
-              utilLS <- mapM u actionLS'
-              let average = (sum utilLS / fromIntegral sampleSize)
-              return (x, average)
-            -- Sample the average utility from a single action
-            sampleY y = do
-              ls1 <- replicateM sampleSize (u y)
-              let average = (sum ls1 / fromIntegral sampleSize)
-              pure (y, average)
-            -- Sample the average utility from all actions
-            samplePayoffs = mapM sampleY ys
+        action = do
+          (_, x) <- h
+          g <- newStdGen
+          gS <- newIOGenM g
+          genFromTable (runKleisli strat x) gS
+        u y = do
+          (z, _) <- h
+          evalStateT
+            ( do
+                r <- k z y
+                -- \^ utility <- payoff function given other players strategies and my own action y
+                gets ((+ r) . HM.findWithDefault 0.0 name)
+            )
+            HM.empty
+        -- Sample the average utility from current strategy
+        averageUtilStrategy = do
+          (_, x) <- h
+          actionLS' <- replicateM sampleSize action
+          utilLS <- mapM u actionLS'
+          let average = sum utilLS / fromIntegral sampleSize
+          return (x, average)
+        -- Sample the average utility from a single action
+        sampleY y = do
+          ls1 <- replicateM sampleSize (u y)
+          let average = sum ls1 / fromIntegral sampleSize
+          pure (y, average)
+        -- Sample the average utility from all actions
+        samplePayoffs = mapM sampleY ys
+    -- \^ ys is the list of possible actions
+    play (strat :- Nil) = let v x = do
+                                g <- newStdGen
+                                gS <- newIOGenM g
+                                action <- genFromTable (runKleisli strat x) gS
+                                return ((), action)
+                              u () r = modify (adjustOrAdd (+ r) r name)
+                           in MonadOpticM v u
 
 -- Support functionality for constructing open games
 fromLens :: (x -> y) -> (x -> r -> s) -> IOOpenGame '[] '[] x s y r
@@ -158,7 +157,7 @@ nature table = OpenGame {play, evaluate}
           return ((), draw)
         u _ _ = return ()
 
-    evaluate = \_ _ -> Nil
+    evaluate _ _ = Nil
 
 -- discount Operation for repeated structures
 discount :: String -> (Double -> Double) -> IOOpenGame '[] '[] () () () ()

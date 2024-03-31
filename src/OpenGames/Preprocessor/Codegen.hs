@@ -19,8 +19,7 @@ combinePats [x] = x
 combinePats xs = TupP xs
 
 apply :: Exp -> [Exp] -> Exp
-apply fn [] = fn
-apply fn (x : xs) = apply (AppE fn x) xs
+apply fn xs = foldl AppE fn xs
 
 mkTup :: [Exp] -> Exp
 mkTup [e] = e
@@ -28,7 +27,7 @@ mkTup e = TupE (map Just e)
 
 patToExp :: Pat -> Exp
 patToExp (VarP e) = VarE e
-patToExp (TupP e) = mkTup (map (patToExp) e)
+patToExp (TupP e) = mkTup (map patToExp e)
 patToExp (LitP e) = LitE e
 patToExp (ListP e) = ListE (fmap patToExp e)
 patToExp (ConP n _ e) = apply (VarE n) (fmap patToExp e)

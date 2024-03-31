@@ -83,7 +83,7 @@ dependentDecision name ys =
             [ let u y =
                     expected
                       ( do
-                          t <- (bayes h x)
+                          t <- bayes h x
                           k t y
                       )
                   strategy = runKleisli a x
@@ -106,7 +106,7 @@ dependentEpsilonDecision epsilon name ys =
             [ let u y =
                     expected
                       ( do
-                          t <- (bayes h x)
+                          t <- bayes h x
                           k t y
                       )
                   strategy = runKleisli a x

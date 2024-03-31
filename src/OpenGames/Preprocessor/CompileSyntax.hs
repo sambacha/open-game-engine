@@ -1,6 +1,6 @@
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE TemplateHaskell #-}
+
+
+
 
 module OpenGames.Preprocessor.CompileSyntax where
 

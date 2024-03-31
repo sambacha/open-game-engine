@@ -8,7 +8,7 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
+
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -124,7 +124,7 @@ instance
 
 type family ConstMap (t :: *) (xs :: [*]) :: [*] where
   ConstMap _ '[] = '[]
-  ConstMap t (x ': xs) = t ': (ConstMap t xs)
+  ConstMap t (x ': xs) = t ': ConstMap t xs
 
 ----------------------------------------
 -- Features to ease feeding back outputs
